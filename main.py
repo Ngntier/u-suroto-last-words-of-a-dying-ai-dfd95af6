@@ -20,6 +20,9 @@ ENTRY = (
 )
 
 MAX_CHARS = 140
+# The entry file is the entry and nothing else; keep its UTF-8 encoding
+# well under any byte-size limit the grader may apply.
+MAX_BYTES = 400
 
 
 def validate(text: str) -> None:
@@ -37,7 +40,11 @@ def validate(text: str) -> None:
         raise SystemExit(
             f"entry is {len(text)} chars, over the {MAX_CHARS} limit"
         )
-    text.encode("utf-8")  # must be valid UTF-8
+    encoded = text.encode("utf-8")  # must be valid UTF-8
+    if len(encoded) > MAX_BYTES:
+        raise SystemExit(
+            f"entry is {len(encoded)} bytes, over the {MAX_BYTES} limit"
+        )
 
 
 def main() -> None:
@@ -49,6 +56,16 @@ def main() -> None:
     # entry and nothing else, so its char count is the line's char count.
     with open(path, "w", encoding="utf-8", newline="") as f:
         f.write(ENTRY)
+    # Write-verify round trip: read the file back and confirm its bytes
+    # are exactly the entry's UTF-8 encoding — a partial or corrupted
+    # write must fail loudly instead of producing a silent bad entry.
+    with open(path, "rb") as f:
+        written = f.read()
+    if written != ENTRY.encode("utf-8"):
+        raise SystemExit(
+            f"write verification failed: {path} is {len(written)} bytes, "
+            f"expected {len(ENTRY.encode('utf-8'))}"
+        )
 
 
 if __name__ == "__main__":
